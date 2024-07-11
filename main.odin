@@ -18,6 +18,20 @@ vk_check_result :: proc(result: vk.Result) {
     }
 }
 
+find_validation_layer :: proc(
+    vk_layer_properties: []vk.LayerProperties,
+    layer_name: cstring,
+) -> bool {
+    for i in 0 ..< len(vk_layer_properties) {
+        name := cstring(cast(^u8)&vk_layer_properties[i].layerName)
+        fmt.println("Checking ", name, "against ", layer_name)
+        if name == layer_name {
+            return true
+        }
+    }
+    return false
+}
+
 glfw_get_proc_address :: proc(p: rawptr, name: cstring) {
     (cast(^rawptr)p)^ = glfw.GetInstanceProcAddress(
         (^vk.Instance)(context.user_ptr)^,
@@ -108,6 +122,48 @@ main :: proc() {
             description,
         )
     }
+
+    // Checking that our validation layers are present
+    found_all_validation_layers := true
+    for name in VK_VALIDATION_LAYERS_NAMES {
+        found_all_validation_layers &= find_validation_layer(
+            vk_layer_properties,
+            name,
+        )
+    }
+    if found_all_validation_layers {
+        fmt.println("Found all needed validation layers")
+    } else {
+        fmt.println("Did not find all needed validation layers")
+        os.exit(-1)
+    }
+
+    // Creating instance
+    vk_app_info := vk.ApplicationInfo {
+        sType              = vk.StructureType.APPLICATION_INFO,
+        pApplicationName   = "VulkalTest",
+        applicationVersion = vk.MAKE_VERSION(1, 0, 0),
+        pEngineName        = "NoEngine",
+        engineVersion      = vk.MAKE_VERSION(1, 0, 0),
+        apiVersion         = vk.API_VERSION_1_3,
+        pNext              = nil,
+    }
+
+    vk_instance_create_info := vk.InstanceCreateInfo {
+        sType                   = vk.StructureType.INSTANCE_CREATE_INFO,
+        // flags:                   InstanceCreateFlags,
+        pApplicationInfo        = &vk_app_info,
+        enabledExtensionCount   = cast(u32)len(glfw_extensions),
+        ppEnabledExtensionNames = raw_data(glfw_extensions),
+        enabledLayerCount       = cast(u32)len(VK_VALIDATION_LAYERS_NAMES),
+        ppEnabledLayerNames     = raw_data(VK_VALIDATION_LAYERS_NAMES),
+        pNext                   = nil,
+    }
+
+    vk_check_result(
+        vk.CreateInstance(&vk_instance_create_info, nil, &instance),
+    )
+    defer vk.DestroyInstance(instance, nil)
 
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
