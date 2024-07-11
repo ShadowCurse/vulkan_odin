@@ -165,6 +165,108 @@ main :: proc() {
     )
     defer vk.DestroyInstance(instance, nil)
 
+    // Selecting physical device
+    vk_physical_device_count: u32 = 0
+    vk_check_result(
+        vk.EnumeratePhysicalDevices(instance, &vk_physical_device_count, nil),
+    )
+    fmt.println("Found ", vk_physical_device_count, " physical devices")
+    vk_physical_devices := make([]vk.PhysicalDevice, vk_physical_device_count)
+    defer delete(vk_physical_devices)
+    vk_check_result(
+        vk.EnumeratePhysicalDevices(
+            instance,
+            &vk_physical_device_count,
+            raw_data(vk_physical_devices),
+        ),
+    )
+    if vk_physical_device_count == 0 {
+        fmt.println("Did not find any devices")
+        os.exit(-1)
+    } else {
+        fmt.println("Selecting first physical device")
+    }
+    vk_physical_device := vk_physical_devices[0]
+
+    properties := vk.PhysicalDeviceProperties{}
+    features := vk.PhysicalDeviceFeatures{}
+    vk.GetPhysicalDeviceProperties(vk_physical_device, &properties)
+    vk.GetPhysicalDeviceFeatures(vk_physical_device, &features)
+    fmt.println("Device has type ", properties.deviceType)
+
+    vk_device_queue_family_count: u32 = 0
+    vk.GetPhysicalDeviceQueueFamilyProperties(
+        vk_physical_device,
+        &vk_device_queue_family_count,
+        nil,
+    )
+    fmt.println("Found ", vk_physical_device_count, " physical devices")
+    vk_device_queue_families := make(
+        []vk.QueueFamilyProperties,
+        vk_device_queue_family_count,
+    )
+    defer delete(vk_device_queue_families)
+    vk.GetPhysicalDeviceQueueFamilyProperties(
+        vk_physical_device,
+        &vk_device_queue_family_count,
+        raw_data(vk_device_queue_families),
+    )
+    vk_selected_queue_index: u32 = 0
+    for queue_family_index in 0 ..< len(vk_device_queue_families) {
+        queue_family := &vk_device_queue_families[queue_family_index]
+        if .GRAPHICS in queue_family.queueFlags {
+            fmt.println(
+                "Queue family ",
+                queue_family_index,
+                " supports GRAPHICS bit",
+            )
+            vk_selected_queue_index = cast(u32)queue_family_index
+        } else {
+            fmt.println(
+                "Queue family ",
+                queue_family_index,
+                " does not supports GRAPHICS bit",
+            )
+        }
+    }
+
+
+    vk_queue_priority: f32 = 1.0
+    vk_queue_create_info := vk.DeviceQueueCreateInfo {
+        sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
+        queueFamilyIndex = vk_selected_queue_index,
+        queueCount       = 1,
+        pQueuePriorities = &vk_queue_priority,
+    }
+
+    vk_physical_device_features := vk.PhysicalDeviceFeatures{}
+
+    vk_device_create_info := vk.DeviceCreateInfo {
+        sType                = vk.StructureType.DEVICE_CREATE_INFO,
+        pQueueCreateInfos    = &vk_queue_create_info,
+        queueCreateInfoCount = 1,
+        pEnabledFeatures     = &vk_physical_device_features,
+    }
+
+    vk_device := vk.Device{}
+    vk_check_result(
+        vk.CreateDevice(
+            vk_physical_device,
+            &vk_device_create_info,
+            nil,
+            &vk_device,
+        ),
+    )
+    defer vk.DestroyDevice(vk_device, nil)
+
+    vk_graphics_queue := vk.Queue{}
+    vk.GetDeviceQueue(
+        vk_device,
+        vk_selected_queue_index,
+        0,
+        &vk_graphics_queue,
+    )
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
