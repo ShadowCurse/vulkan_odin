@@ -56,10 +56,10 @@ main :: proc() {
     }
 
     // The actual instance creation happens lower
-    instance := vk.Instance{}
+    vk_instance := vk.Instance{}
 
     // needed to load vulkan functions
-    context.user_ptr = &instance
+    context.user_ptr = &vk_instance
     vk.load_proc_addresses(glfw_get_proc_address)
 
     // looking at the available extensions
@@ -161,21 +161,32 @@ main :: proc() {
     }
 
     vk_check_result(
-        vk.CreateInstance(&vk_instance_create_info, nil, &instance),
+        vk.CreateInstance(&vk_instance_create_info, nil, &vk_instance),
     )
-    defer vk.DestroyInstance(instance, nil)
+    defer vk.DestroyInstance(vk_instance, nil)
+
+    // Create surface
+    surface := vk.SurfaceKHR{}
+    vk_check_result(
+        glfw.CreateWindowSurface(vk_instance, window, nil, &surface),
+    )
+    defer vk.DestroySurfaceKHR(vk_instance, surface, nil)
 
     // Selecting physical device
     vk_physical_device_count: u32 = 0
     vk_check_result(
-        vk.EnumeratePhysicalDevices(instance, &vk_physical_device_count, nil),
+        vk.EnumeratePhysicalDevices(
+            vk_instance,
+            &vk_physical_device_count,
+            nil,
+        ),
     )
     fmt.println("Found ", vk_physical_device_count, " physical devices")
     vk_physical_devices := make([]vk.PhysicalDevice, vk_physical_device_count)
     defer delete(vk_physical_devices)
     vk_check_result(
         vk.EnumeratePhysicalDevices(
-            instance,
+            vk_instance,
             &vk_physical_device_count,
             raw_data(vk_physical_devices),
         ),
