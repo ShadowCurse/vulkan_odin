@@ -9,11 +9,12 @@ WIDTH: i32 : 800
 HEIGHT: i32 : 450
 
 VK_VALIDATION_LAYERS_NAMES: []cstring : {"VK_LAYER_KHRONOS_validation"}
+VK_DEVICE_EXTENSION_NAMES: []cstring : {"VK_KHR_swapchain"}
 VK_DEBUG :: true
 
 vk_check_result :: proc(result: vk.Result) {
     if result != vk.Result.SUCCESS {
-        fmt.println("VK resturned error", result)
+        fmt.eprintln("VK resturned error", result)
         os.exit(-1)
     }
 }
@@ -26,6 +27,20 @@ find_validation_layer :: proc(
         name := cstring(cast(^u8)&vk_layer_properties[i].layerName)
         fmt.println("Checking ", name, "against ", layer_name)
         if name == layer_name {
+            return true
+        }
+    }
+    return false
+}
+
+find_physical_device_extension :: proc(
+    vk_extensions: []vk.ExtensionProperties,
+    extension_name: cstring,
+) -> bool {
+    for i in 0 ..< len(vk_extensions) {
+        name := cstring(cast(^u8)&vk_extensions[i].extensionName)
+        fmt.println("Checking ", name, "against ", extension_name)
+        if name == extension_name {
             return true
         }
     }
@@ -205,6 +220,39 @@ main :: proc() {
     vk.GetPhysicalDeviceFeatures(vk_physical_device, &features)
     fmt.println("Device has type ", properties.deviceType)
 
+
+    vk_physical_device_extensions_count: u32 = 0
+    vk.EnumerateDeviceExtensionProperties(
+        vk_physical_device,
+        nil,
+        &vk_physical_device_extensions_count,
+        nil,
+    )
+    vk_physical_device_extensions := make(
+        []vk.ExtensionProperties,
+        vk_physical_device_extensions_count,
+    )
+    defer delete(vk_physical_device_extensions)
+    vk.EnumerateDeviceExtensionProperties(
+        vk_physical_device,
+        nil,
+        &vk_physical_device_extensions_count,
+        raw_data(vk_physical_device_extensions),
+    )
+    found_all_device_extensions := true
+    for name in VK_DEVICE_EXTENSION_NAMES {
+        found_all_device_extensions &= find_physical_device_extension(
+            vk_physical_device_extensions,
+            name,
+        )
+    }
+    if found_all_device_extensions {
+        fmt.println("Found all needed device extensions")
+    } else {
+        fmt.println("Did not find all needed device extensions")
+        os.exit(-1)
+    }
+
     vk_device_queue_family_count: u32 = 0
     vk.GetPhysicalDeviceQueueFamilyProperties(
         vk_physical_device,
@@ -223,6 +271,18 @@ main :: proc() {
         raw_data(vk_device_queue_families),
     )
     vk_selected_queue_index: u32 = 0
+
+    selected_queue_pesentation_supported: u32
+    vk.GetPhysicalDeviceSurfaceSupportKHR(
+        vk_physical_device,
+        vk_selected_queue_index,
+        surface,
+        cast(^b32)&selected_queue_pesentation_supported,
+    )
+    fmt.println(
+        "Selected queue can present: ",
+        cast(bool)selected_queue_pesentation_supported,
+    )
     for queue_family_index in 0 ..< len(vk_device_queue_families) {
         queue_family := &vk_device_queue_families[queue_family_index]
         if .GRAPHICS in queue_family.queueFlags {
@@ -253,10 +313,12 @@ main :: proc() {
     vk_physical_device_features := vk.PhysicalDeviceFeatures{}
 
     vk_device_create_info := vk.DeviceCreateInfo {
-        sType                = vk.StructureType.DEVICE_CREATE_INFO,
-        pQueueCreateInfos    = &vk_queue_create_info,
-        queueCreateInfoCount = 1,
-        pEnabledFeatures     = &vk_physical_device_features,
+        sType                 = vk.StructureType.DEVICE_CREATE_INFO,
+        pQueueCreateInfos     = &vk_queue_create_info,
+        queueCreateInfoCount  = 1,
+        pEnabledFeatures      = &vk_physical_device_features,
+        ppEnabledLayerNames   = raw_data(VK_DEVICE_EXTENSION_NAMES),
+        enabledExtensionCount = cast(u32)len(VK_DEVICE_EXTENSION_NAMES),
     }
 
     vk_device := vk.Device{}
