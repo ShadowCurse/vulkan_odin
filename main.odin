@@ -301,7 +301,6 @@ main :: proc() {
         }
     }
 
-
     vk_queue_priority: f32 = 1.0
     vk_queue_create_info := vk.DeviceQueueCreateInfo {
         sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
@@ -313,12 +312,12 @@ main :: proc() {
     vk_physical_device_features := vk.PhysicalDeviceFeatures{}
 
     vk_device_create_info := vk.DeviceCreateInfo {
-        sType                 = vk.StructureType.DEVICE_CREATE_INFO,
-        pQueueCreateInfos     = &vk_queue_create_info,
-        queueCreateInfoCount  = 1,
-        pEnabledFeatures      = &vk_physical_device_features,
-        ppEnabledLayerNames   = raw_data(VK_DEVICE_EXTENSION_NAMES),
-        enabledExtensionCount = cast(u32)len(VK_DEVICE_EXTENSION_NAMES),
+        sType                   = vk.StructureType.DEVICE_CREATE_INFO,
+        pQueueCreateInfos       = &vk_queue_create_info,
+        queueCreateInfoCount    = 1,
+        pEnabledFeatures        = &vk_physical_device_features,
+        ppEnabledExtensionNames = raw_data(VK_DEVICE_EXTENSION_NAMES),
+        enabledExtensionCount   = u32(len(VK_DEVICE_EXTENSION_NAMES)),
     }
 
     vk_device := vk.Device{}
