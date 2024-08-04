@@ -339,6 +339,67 @@ main :: proc() {
         &vk_graphics_queue,
     )
 
+    vk_surface_capabilities := vk.SurfaceCapabilitiesKHR{}
+    vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(
+        vk_physical_device,
+        surface,
+        &vk_surface_capabilities,
+    )
+    fmt.println(
+        "physical device surface capabilities",
+        vk_surface_capabilities,
+    )
+
+    vk_device_surface_format_count: u32 = 0
+    vk.GetPhysicalDeviceSurfaceFormatsKHR(
+        vk_physical_device,
+        surface,
+        &vk_device_surface_format_count,
+        nil,
+    )
+    vk_device_surface_formats := make(
+        []vk.SurfaceFormatKHR,
+        vk_device_queue_family_count,
+    )
+    defer delete(vk_device_surface_formats)
+    vk.GetPhysicalDeviceSurfaceFormatsKHR(
+        vk_physical_device,
+        surface,
+        &vk_device_surface_format_count,
+        raw_data(vk_device_surface_formats),
+    )
+    fmt.println(
+        "Found ",
+        vk_device_surface_format_count,
+        " physical devices surface formats:",
+        vk_device_surface_formats,
+    )
+
+    vk_device_surface_present_modes_count: u32 = 0
+    vk.GetPhysicalDeviceSurfacePresentModesKHR(
+        vk_physical_device,
+        surface,
+        &vk_device_surface_present_modes_count,
+        nil,
+    )
+    vk_device_surface_present_formats := make(
+        []vk.PresentModeKHR,
+        vk_device_queue_family_count,
+    )
+    defer delete(vk_device_surface_present_formats)
+    vk.GetPhysicalDeviceSurfacePresentModesKHR(
+        vk_physical_device,
+        surface,
+        &vk_device_surface_present_modes_count,
+        raw_data(vk_device_surface_present_formats),
+    )
+    fmt.println(
+        "Found ",
+        vk_device_surface_present_modes_count,
+        " physical devices surface present formats:",
+        vk_device_surface_present_formats,
+    )
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
