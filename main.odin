@@ -47,6 +47,29 @@ find_physical_device_extension :: proc(
     return false
 }
 
+select_swap_extent :: proc(
+    cap: vk.SurfaceCapabilitiesKHR,
+    window: glfw.WindowHandle,
+) -> vk.Extent2D {
+    if cap.currentExtent.width != max(u32) {
+        return cap.currentExtent
+    } else {
+        w, h := glfw.GetFramebufferSize(window)
+        width := clamp(
+            u32(w),
+            cap.minImageExtent.width,
+            cap.maxImageExtent.width,
+        )
+        height := clamp(
+            u32(h),
+            cap.minImageExtent.height,
+            cap.maxImageExtent.height,
+        )
+        return vk.Extent2D{width = width, height = height}
+    }
+
+}
+
 glfw_get_proc_address :: proc(p: rawptr, name: cstring) {
     (cast(^rawptr)p)^ = glfw.GetInstanceProcAddress(
         (^vk.Instance)(context.user_ptr)^,
@@ -399,6 +422,37 @@ main :: proc() {
         " physical devices surface present formats:",
         vk_device_surface_present_formats,
     )
+
+    vk_swapchain_create_info := vk.SwapchainCreateInfoKHR {
+        sType            = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR,
+        surface          = surface,
+        minImageCount    = vk_surface_capabilities.minImageCount + 1,
+        // format = "B8G8R8A8_SRGB", colorSpace = "SRGB_NONLINEAR"
+        imageFormat      = vk_device_surface_formats[1].format,
+        imageColorSpace  = vk_device_surface_formats[1].colorSpace,
+        imageExtent      = select_swap_extent(vk_surface_capabilities, window),
+        imageArrayLayers = 1,
+        imageUsage       = {.COLOR_ATTACHMENT},
+        imageSharingMode = vk.SharingMode.EXCLUSIVE,
+        preTransform     = vk_surface_capabilities.currentTransform,
+        compositeAlpha   = {.OPAQUE},
+        // mailbox
+        presentMode      = vk_device_surface_present_formats[1],
+        clipped          = true,
+        oldSwapchain     = vk.SwapchainKHR{},
+    }
+
+    fmt.println("Creating swap chain")
+    vk_swap_chain := vk.SwapchainKHR{}
+    vk_check_result(
+        vk.CreateSwapchainKHR(
+          vk_device,
+          &vk_swapchain_create_info,
+          nil,
+          &vk_swap_chain
+        ),
+    )
+    defer vk.DestroySwapchainKHR(vk_device, vk_swap_chain, nil)
 
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
