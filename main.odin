@@ -446,13 +446,31 @@ main :: proc() {
     vk_swap_chain := vk.SwapchainKHR{}
     vk_check_result(
         vk.CreateSwapchainKHR(
-          vk_device,
-          &vk_swapchain_create_info,
-          nil,
-          &vk_swap_chain
+            vk_device,
+            &vk_swapchain_create_info,
+            nil,
+            &vk_swap_chain,
         ),
     )
     defer vk.DestroySwapchainKHR(vk_device, vk_swap_chain, nil)
+
+    fmt.println("Getting swap chain images")
+    vk_swap_chain_images_count: u32 = 0
+    vk.GetSwapchainImagesKHR(
+        vk_device,
+        vk_swap_chain,
+        &vk_swap_chain_images_count,
+        nil,
+    )
+    vk_swap_chain_imagess := make([]vk.Image, vk_swap_chain_images_count)
+    defer delete(vk_swap_chain_imagess)
+    vk.GetSwapchainImagesKHR(
+        vk_device,
+        vk_swap_chain,
+        &vk_swap_chain_images_count,
+        raw_data(vk_swap_chain_imagess),
+    )
+    fmt.println("Got ", vk_swap_chain_images_count, " swap chain images")
 
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
