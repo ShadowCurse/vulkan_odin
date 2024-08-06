@@ -480,6 +480,48 @@ main :: proc() {
     )
     fmt.println("Got ", vk_swap_chain_images_count, " swap chain images")
 
+    fmt.println("Creating swap chain image views")
+    vk_swap_chain_images_views := make(
+        []vk.ImageView,
+        vk_swap_chain_images_count,
+    )
+    for i in 0 ..< len(vk_swap_chain_imagess) {
+        vk_image_view_create_info := vk.ImageViewCreateInfo {
+            sType = vk.StructureType.IMAGE_VIEW_CREATE_INFO,
+            image = vk_swap_chain_imagess[i],
+            viewType = vk.ImageViewType.D2,
+            format = vk_device_surface_formats[1].format,
+            components = vk.ComponentMapping {
+                r = vk.ComponentSwizzle.IDENTITY,
+                g = vk.ComponentSwizzle.IDENTITY,
+                b = vk.ComponentSwizzle.IDENTITY,
+                a = vk.ComponentSwizzle.IDENTITY,
+            },
+            subresourceRange = vk.ImageSubresourceRange {
+                aspectMask = {.COLOR},
+                baseMipLevel = 0,
+                levelCount = 1,
+                baseArrayLayer = 0,
+                layerCount = 1,
+            },
+        }
+        vk_check_result(
+            vk.CreateImageView(
+                vk_device,
+                &vk_image_view_create_info,
+                nil,
+                &vk_swap_chain_images_views[i],
+            ),
+        )
+    }
+    defer {
+        for view in vk_swap_chain_images_views {
+            vk.DestroyImageView(vk_device, view, nil)
+        }
+        delete(vk_swap_chain_images_views)
+    }
+    fmt.println("Got ", vk_swap_chain_images_count, " swap chain image views")
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
