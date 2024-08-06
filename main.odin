@@ -100,7 +100,7 @@ main :: proc() {
     context.user_ptr = &vk_instance
     vk.load_proc_addresses(glfw_get_proc_address)
 
-    // looking at the available extensions
+    fmt.println("Looking at the available extensions")
     vk_extension_property_count: u32 = 0
     vk_check_result(
         vk.EnumerateInstanceExtensionProperties(
@@ -133,7 +133,7 @@ main :: proc() {
         )
     }
 
-    // looking at the available layers
+    fmt.println("Looking at the available layers")
     vk_layer_property_count: u32 = 0
     vk_check_result(
         vk.EnumerateInstanceLayerProperties(&vk_layer_property_count, nil),
@@ -161,7 +161,7 @@ main :: proc() {
         )
     }
 
-    // Checking that our validation layers are present
+    fmt.println("Checking that our validation layers are present")
     found_all_validation_layers := true
     for name in VK_VALIDATION_LAYERS_NAMES {
         found_all_validation_layers &= find_validation_layer(
@@ -176,7 +176,7 @@ main :: proc() {
         os.exit(-1)
     }
 
-    // Creating instance
+    fmt.println("Creating instance")
     vk_app_info := vk.ApplicationInfo {
         sType              = vk.StructureType.APPLICATION_INFO,
         pApplicationName   = "VulkalTest",
@@ -203,14 +203,14 @@ main :: proc() {
     )
     defer vk.DestroyInstance(vk_instance, nil)
 
-    // Create surface
+    fmt.println("Creating surface")
     surface := vk.SurfaceKHR{}
     vk_check_result(
         glfw.CreateWindowSurface(vk_instance, window, nil, &surface),
     )
     defer vk.DestroySurfaceKHR(vk_instance, surface, nil)
 
-    // Selecting physical device
+    fmt.println("Selecting physical device")
     vk_physical_device_count: u32 = 0
     vk_check_result(
         vk.EnumeratePhysicalDevices(
@@ -237,6 +237,7 @@ main :: proc() {
     }
     vk_physical_device := vk_physical_devices[0]
 
+    fmt.println("Getting physical device properties and features")
     properties := vk.PhysicalDeviceProperties{}
     features := vk.PhysicalDeviceFeatures{}
     vk.GetPhysicalDeviceProperties(vk_physical_device, &properties)
@@ -244,6 +245,7 @@ main :: proc() {
     fmt.println("Device has type ", properties.deviceType)
 
 
+    fmt.println("Getting physical device extensions")
     vk_physical_device_extensions_count: u32 = 0
     vk.EnumerateDeviceExtensionProperties(
         vk_physical_device,
@@ -276,6 +278,7 @@ main :: proc() {
         os.exit(-1)
     }
 
+    fmt.println("Getting physical device queue family properties")
     vk_device_queue_family_count: u32 = 0
     vk.GetPhysicalDeviceQueueFamilyProperties(
         vk_physical_device,
@@ -324,6 +327,7 @@ main :: proc() {
         }
     }
 
+    fmt.println("Creating device")
     vk_queue_priority: f32 = 1.0
     vk_queue_create_info := vk.DeviceQueueCreateInfo {
         sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
@@ -354,6 +358,7 @@ main :: proc() {
     )
     defer vk.DestroyDevice(vk_device, nil)
 
+    fmt.println("Creating device queue")
     vk_graphics_queue := vk.Queue{}
     vk.GetDeviceQueue(
         vk_device,
@@ -362,6 +367,7 @@ main :: proc() {
         &vk_graphics_queue,
     )
 
+    fmt.println("Getting device surface capabilities")
     vk_surface_capabilities := vk.SurfaceCapabilitiesKHR{}
     vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(
         vk_physical_device,
@@ -373,6 +379,7 @@ main :: proc() {
         vk_surface_capabilities,
     )
 
+    fmt.println("Getting device surface formats")
     vk_device_surface_format_count: u32 = 0
     vk.GetPhysicalDeviceSurfaceFormatsKHR(
         vk_physical_device,
@@ -398,6 +405,7 @@ main :: proc() {
         vk_device_surface_formats,
     )
 
+    fmt.println("Getting device surface present modes")
     vk_device_surface_present_modes_count: u32 = 0
     vk.GetPhysicalDeviceSurfacePresentModesKHR(
         vk_physical_device,
@@ -423,6 +431,7 @@ main :: proc() {
         vk_device_surface_present_formats,
     )
 
+    fmt.println("Creating swap chain")
     vk_swapchain_create_info := vk.SwapchainCreateInfoKHR {
         sType            = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR,
         surface          = surface,
@@ -442,7 +451,6 @@ main :: proc() {
         oldSwapchain     = vk.SwapchainKHR{},
     }
 
-    fmt.println("Creating swap chain")
     vk_swap_chain := vk.SwapchainKHR{}
     vk_check_result(
         vk.CreateSwapchainKHR(
