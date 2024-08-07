@@ -1,6 +1,7 @@
 package vo
 
 import fmt "core:fmt"
+import mem "core:mem"
 import os "core:os"
 import glfw "vendor:glfw"
 import vk "vendor:vulkan"
@@ -68,6 +69,31 @@ select_swap_extent :: proc(
         return vk.Extent2D{width = width, height = height}
     }
 
+}
+
+load_shader :: proc(path: string) -> []byte {
+    handle, open_err := os.open(path)
+    if open_err != os.ERROR_NONE {
+        fmt.println("Cannot open ", path, " shader")
+        os.exit(-1)
+    }
+
+    length, size_err := os.file_size(handle)
+    if size_err != os.ERROR_NONE {
+        fmt.println("Cannot get size of ", path, " shader")
+        os.exit(-1)
+    }
+
+    // Need to align to 4 bytes for shader module
+    data, _ := mem.make_aligned([]byte, length, align_of(u32))
+
+    bytes_read, read_err := os.read_full(handle, data)
+    if read_err != os.ERROR_NONE {
+        delete(data)
+        fmt.println("Cannot read ", path, " shader")
+        os.exit(-1)
+    }
+    return data[:bytes_read]
 }
 
 glfw_get_proc_address :: proc(p: rawptr, name: cstring) {
@@ -521,6 +547,44 @@ main :: proc() {
         delete(vk_swap_chain_images_views)
     }
     fmt.println("Got ", vk_swap_chain_images_count, " swap chain image views")
+
+    fmt.println("Creating vertex shader module")
+    vert_data := load_shader("vert.spv")
+    defer delete(vert_data)
+    vert_shader_module_create_info := vk.ShaderModuleCreateInfo {
+        sType    = vk.StructureType.SHADER_MODULE_CREATE_INFO,
+        codeSize = len(vert_data),
+        pCode    = transmute(^u32)raw_data(vert_data),
+    }
+    vert_shader_module := vk.ShaderModule{}
+    vk_check_result(
+        vk.CreateShaderModule(
+            vk_device,
+            &vert_shader_module_create_info,
+            nil,
+            &vert_shader_module,
+        ),
+    )
+    defer vk.DestroyShaderModule(vk_device, vert_shader_module, nil)
+
+    fmt.println("Creating fragment shader module")
+    frag_data := load_shader("frag.spv")
+    defer delete(frag_data)
+    frag_shader_module_create_info := vk.ShaderModuleCreateInfo {
+        sType    = vk.StructureType.SHADER_MODULE_CREATE_INFO,
+        codeSize = len(frag_data),
+        pCode    = transmute(^u32)raw_data(frag_data),
+    }
+    frag_shader_module := vk.ShaderModule{}
+    vk_check_result(
+        vk.CreateShaderModule(
+            vk_device,
+            &frag_shader_module_create_info,
+            nil,
+            &frag_shader_module,
+        ),
+    )
+    defer vk.DestroyShaderModule(vk_device, frag_shader_module, nil)
 
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()

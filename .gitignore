@@ -1,3 +1,5 @@
 .envrc
 .direnv
 vulkan_odin
+frag.spv
+vert.spv
