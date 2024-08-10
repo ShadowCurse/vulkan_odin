@@ -458,6 +458,7 @@ main :: proc() {
     )
 
     fmt.println("Creating swap chain")
+    vk_swap_chain_extent := select_swap_extent(vk_surface_capabilities, window)
     vk_swapchain_create_info := vk.SwapchainCreateInfoKHR {
         sType            = vk.StructureType.SWAPCHAIN_CREATE_INFO_KHR,
         surface          = surface,
@@ -465,7 +466,7 @@ main :: proc() {
         // format = "B8G8R8A8_SRGB", colorSpace = "SRGB_NONLINEAR"
         imageFormat      = vk_device_surface_formats[1].format,
         imageColorSpace  = vk_device_surface_formats[1].colorSpace,
-        imageExtent      = select_swap_extent(vk_surface_capabilities, window),
+        imageExtent      = vk_swap_chain_extent,
         imageArrayLayers = 1,
         imageUsage       = {.COLOR_ATTACHMENT},
         imageSharingMode = vk.SharingMode.EXCLUSIVE,
