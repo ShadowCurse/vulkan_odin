@@ -587,6 +587,21 @@ main :: proc() {
     )
     defer vk.DestroyShaderModule(vk_device, frag_shader_module, nil)
 
+    fmt.println("Creating pipeline layout")
+    pipeline_layout_create_info := vk.PipelineLayoutCreateInfo {
+        sType = vk.StructureType.PIPELINE_LAYOUT_CREATE_INFO,
+    }
+
+    pipeline_layout := vk.PipelineLayout{}
+    vk_check_result(
+        vk.CreatePipelineLayout(
+            vk_device,
+            &pipeline_layout_create_info,
+            nil,
+            &pipeline_layout,
+        ),
+    )
+    defer vk.DestroyPipelineLayout(vk_device, pipeline_layout, nil)
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
