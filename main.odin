@@ -644,6 +644,129 @@ main :: proc() {
         ),
     )
     defer vk.DestroyRenderPass(vk_device, render_pass, nil)
+
+    fmt.println("Creating graphics pipeline")
+    pipeline_vertex_input_state_create_info :=
+        vk.PipelineVertexInputStateCreateInfo {
+            sType                           = vk.StructureType.PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            vertexBindingDescriptionCount   = 0,
+            pVertexBindingDescriptions      = nil,
+            vertexAttributeDescriptionCount = 0,
+            pVertexAttributeDescriptions    = nil,
+        }
+
+    pipeline_input_assembly_state_create_info :=
+        vk.PipelineInputAssemblyStateCreateInfo {
+            sType                  = vk.StructureType.PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            topology               = vk.PrimitiveTopology.TRIANGLE_LIST,
+            primitiveRestartEnable = false,
+        }
+
+    pipeline_viewport := vk.Viewport {
+            x        = 0.0,
+            y        = 0.0,
+            width    = f32(vk_swap_chain_extent.width),
+            height   = f32(vk_swap_chain_extent.height),
+            minDepth = 0.0,
+            maxDepth = 1.0,
+        }
+
+    pipeline_scissor := vk.Rect2D {
+            offset = {0.0, 0.0},
+            extent = vk_swap_chain_extent,
+        }
+
+    pipeline_viewport_state_create_info := vk.PipelineViewportStateCreateInfo {
+            sType         = vk.StructureType.PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            viewportCount = 1,
+            pViewports    = &pipeline_viewport,
+            scissorCount  = 1,
+            pScissors     = &pipeline_scissor,
+        }
+
+    pipeline_rasterizer_state_create_info :=
+        vk.PipelineRasterizationStateCreateInfo {
+            sType                   = vk.StructureType.PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            depthClampEnable        = false,
+            rasterizerDiscardEnable = false,
+            polygonMode             = vk.PolygonMode.FILL,
+            lineWidth               = 1.0,
+            cullMode                = {.BACK},
+            frontFace               = vk.FrontFace.CLOCKWISE,
+            depthBiasEnable         = false,
+        }
+
+    pipeline_multisample_state_create_info :=
+        vk.PipelineMultisampleStateCreateInfo {
+            sType                = vk.StructureType.PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            sampleShadingEnable  = false,
+            rasterizationSamples = {._1},
+        }
+
+    pipeline_color_blend_attachment_state :=
+        vk.PipelineColorBlendAttachmentState {
+            colorWriteMask = {.R, .G, .B, .A},
+            blendEnable    = false,
+        }
+
+    pipeline_color_blend_state_create_info :=
+        vk.PipelineColorBlendStateCreateInfo {
+            sType           = vk.StructureType.PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            logicOpEnable   = false,
+            attachmentCount = 1,
+            pAttachments    = &pipeline_color_blend_attachment_state,
+        }
+
+    vert_pipeline_shader_stage_create_info :=
+        vk.PipelineShaderStageCreateInfo {
+            sType  = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO,
+            stage  = {.VERTEX},
+            module = vert_shader_module,
+            pName  = "vs_main",
+        }
+    frag_pipeline_shader_stage_create_info :=
+        vk.PipelineShaderStageCreateInfo {
+            sType  = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO,
+            stage  = {.FRAGMENT},
+            module = frag_shader_module,
+            pName  = "fs_main",
+        }
+
+    pipeline_stages: []vk.PipelineShaderStageCreateInfo = {
+        vert_pipeline_shader_stage_create_info,
+        frag_pipeline_shader_stage_create_info,
+    }
+
+    graphics_pipeline_create_info := vk.GraphicsPipelineCreateInfo {
+        sType               = vk.StructureType.GRAPHICS_PIPELINE_CREATE_INFO,
+        stageCount          = 2,
+        pStages             = raw_data(pipeline_stages),
+        pVertexInputState   = &pipeline_vertex_input_state_create_info,
+        pInputAssemblyState = &pipeline_input_assembly_state_create_info,
+        pViewportState      = &pipeline_viewport_state_create_info,
+        pRasterizationState = &pipeline_rasterizer_state_create_info,
+        pMultisampleState   = &pipeline_multisample_state_create_info,
+        pColorBlendState    = &pipeline_color_blend_state_create_info,
+        pDepthStencilState  = nil,
+        pDynamicState       = nil,
+        layout              = pipeline_layout,
+        renderPass          = render_pass,
+        subpass             = 0,
+    }
+
+    graphics_pipeline := vk.Pipeline{}
+    vk_check_result(
+        vk.CreateGraphicsPipelines(
+            vk_device,
+            0,
+            1,
+            &graphics_pipeline_create_info,
+            nil,
+            &graphics_pipeline,
+        ),
+    )
+    defer vk.DestroyPipeline(vk_device, graphics_pipeline, nil)
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
