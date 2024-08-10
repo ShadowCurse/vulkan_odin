@@ -602,6 +602,48 @@ main :: proc() {
         ),
     )
     defer vk.DestroyPipelineLayout(vk_device, pipeline_layout, nil)
+
+    fmt.println("Creating render pass")
+    subpass_attachment_reference := vk.AttachmentReference {
+        attachment = 0,
+        layout     = vk.ImageLayout.COLOR_ATTACHMENT_OPTIMAL,
+    }
+
+    subpass_description := vk.SubpassDescription {
+        pipelineBindPoint    = vk.PipelineBindPoint.GRAPHICS,
+        colorAttachmentCount = 1,
+        pColorAttachments    = &subpass_attachment_reference,
+    }
+
+    render_pass_attachment_description := vk.AttachmentDescription {
+        format         = vk_device_surface_formats[1].format,
+        samples        = {._1},
+        loadOp         = vk.AttachmentLoadOp.LOAD,
+        storeOp        = vk.AttachmentStoreOp.STORE,
+        stencilLoadOp  = vk.AttachmentLoadOp.DONT_CARE,
+        stencilStoreOp = vk.AttachmentStoreOp.DONT_CARE,
+        initialLayout  = vk.ImageLayout.COLOR_ATTACHMENT_OPTIMAL,
+        finalLayout    = vk.ImageLayout.PRESENT_SRC_KHR,
+    }
+
+    render_pass_create_info := vk.RenderPassCreateInfo {
+        sType           = vk.StructureType.RENDER_PASS_CREATE_INFO,
+        attachmentCount = 1,
+        pAttachments    = &render_pass_attachment_description,
+        subpassCount    = 1,
+        pSubpasses      = &subpass_description,
+    }
+
+    render_pass := vk.RenderPass{}
+    vk_check_result(
+        vk.CreateRenderPass(
+            vk_device,
+            &render_pass_create_info,
+            nil,
+            &render_pass,
+        ),
+    )
+    defer vk.DestroyRenderPass(vk_device, render_pass, nil)
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
