@@ -96,6 +96,46 @@ load_shader :: proc(path: string) -> []byte {
     return data[:bytes_read]
 }
 
+record_command_buffer :: proc(
+    command_buffer: vk.CommandBuffer,
+    render_pass: vk.RenderPass,
+    framebuffer: vk.Framebuffer,
+    extent: vk.Extent2D,
+    graphics_pipeline: vk.Pipeline,
+) {
+    command_buffer_begin_info := vk.CommandBufferBeginInfo {
+        sType = vk.StructureType.COMMAND_BUFFER_BEGIN_INFO,
+    }
+    vk_check_result(
+        vk.BeginCommandBuffer(command_buffer, &command_buffer_begin_info),
+    )
+    render_pass_clear_color := vk.ClearValue {
+        color = {float32 = [4]f32{0.0, 0.0, 0.0, 0.0}},
+    }
+    render_pass_begin_info := vk.RenderPassBeginInfo {
+        sType = vk.StructureType.RENDER_PASS_BEGIN_INFO,
+        renderPass = render_pass,
+        framebuffer = framebuffer,
+        renderArea = vk.Rect2D{offset = {0.0, 0.0}, extent = extent},
+        clearValueCount = 1,
+        pClearValues = &render_pass_clear_color,
+    }
+    vk.CmdBeginRenderPass(
+        command_buffer,
+        &render_pass_begin_info,
+        vk.SubpassContents.INLINE,
+    )
+    vk.CmdBindPipeline(
+        command_buffer,
+        vk.PipelineBindPoint.GRAPHICS,
+        graphics_pipeline,
+    )
+    vk.CmdDraw(command_buffer, 3, 1, 0, 0)
+    vk.CmdEndRenderPass(command_buffer)
+    vk_check_result(vk.EndCommandBuffer(command_buffer))
+}
+
+
 glfw_get_proc_address :: proc(p: rawptr, name: cstring) {
     (cast(^rawptr)p)^ = glfw.GetInstanceProcAddress(
         (^vk.Instance)(context.user_ptr)^,
