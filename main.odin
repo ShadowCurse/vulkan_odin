@@ -814,6 +814,22 @@ main :: proc() {
     )
     defer vk.DestroyCommandPool(vk_device, command_pool, nil)
 
+    fmt.println("Creating command buffer")
+    command_buffer_allocate_info := vk.CommandBufferAllocateInfo {
+        sType              = vk.StructureType.COMMAND_BUFFER_ALLOCATE_INFO,
+        commandPool        = command_pool,
+        level              = vk.CommandBufferLevel.PRIMARY,
+        commandBufferCount = 1,
+    }
+    command_buffer := vk.CommandBuffer{}
+    vk_check_result(
+        vk.AllocateCommandBuffers(
+            vk_device,
+            &command_buffer_allocate_info,
+            &command_buffer,
+        ),
+    )
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
