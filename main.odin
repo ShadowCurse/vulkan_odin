@@ -767,6 +767,35 @@ main :: proc() {
     )
     defer vk.DestroyPipeline(vk_device, graphics_pipeline, nil)
 
+    fmt.println("Creating frame buffers")
+    framebuffers := make([]vk.Framebuffer, vk_swap_chain_images_count)
+    for i in 0 ..< len(vk_swap_chain_imagess) {
+        framebuffer_create_info := vk.FramebufferCreateInfo {
+            sType           = vk.StructureType.FRAMEBUFFER_CREATE_INFO,
+            renderPass      = render_pass,
+            attachmentCount = 1,
+            pAttachments    = &vk_swap_chain_images_views[i],
+            width           = vk_swap_chain_extent.width,
+            height          = vk_swap_chain_extent.height,
+            layers          = 1,
+        }
+
+        vk_check_result(
+            vk.CreateFramebuffer(
+                vk_device,
+                &framebuffer_create_info,
+                nil,
+                &framebuffers[i],
+            ),
+        )
+    }
+    defer {
+        for f in framebuffers {
+            vk.DestroyFramebuffer(vk_device, f, nil)
+        }
+        delete(framebuffers)
+    }
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
