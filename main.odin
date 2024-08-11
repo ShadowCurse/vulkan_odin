@@ -679,8 +679,17 @@ main :: proc() {
         storeOp        = vk.AttachmentStoreOp.STORE,
         stencilLoadOp  = vk.AttachmentLoadOp.DONT_CARE,
         stencilStoreOp = vk.AttachmentStoreOp.DONT_CARE,
-        initialLayout  = vk.ImageLayout.COLOR_ATTACHMENT_OPTIMAL,
+        initialLayout  = vk.ImageLayout.UNDEFINED,
         finalLayout    = vk.ImageLayout.PRESENT_SRC_KHR,
+    }
+
+    render_pass_dependency := vk.SubpassDependency {
+        srcSubpass    = vk.SUBPASS_EXTERNAL,
+        dstSubpass    = 0,
+        srcStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
+        srcAccessMask = {},
+        dstStageMask  = {.COLOR_ATTACHMENT_OUTPUT},
+        dstAccessMask = {.COLOR_ATTACHMENT_WRITE},
     }
 
     render_pass_create_info := vk.RenderPassCreateInfo {
@@ -689,6 +698,8 @@ main :: proc() {
         pAttachments    = &render_pass_attachment_description,
         subpassCount    = 1,
         pSubpasses      = &subpass_description,
+        dependencyCount = 1,
+        pDependencies   = &render_pass_dependency,
     }
 
     render_pass := vk.RenderPass{}
@@ -779,14 +790,14 @@ main :: proc() {
             sType  = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage  = {.VERTEX},
             module = vert_shader_module,
-            pName  = "vs_main",
+            pName  = "main",
         }
     frag_pipeline_shader_stage_create_info :=
         vk.PipelineShaderStageCreateInfo {
             sType  = vk.StructureType.PIPELINE_SHADER_STAGE_CREATE_INFO,
             stage  = {.FRAGMENT},
             module = frag_shader_module,
-            pName  = "fs_main",
+            pName  = "main",
         }
 
     pipeline_stages: []vk.PipelineShaderStageCreateInfo = {
@@ -887,7 +898,104 @@ main :: proc() {
         ),
     )
 
+    semaphore_create_info := vk.SemaphoreCreateInfo {
+        sType = vk.StructureType.SEMAPHORE_CREATE_INFO,
+    }
+    semaphore_image_available := vk.Semaphore{}
+    vk_check_result(
+        vk.CreateSemaphore(
+            vk_device,
+            &semaphore_create_info,
+            nil,
+            &semaphore_image_available,
+        ),
+    )
+    defer vk.DestroySemaphore(vk_device, semaphore_image_available, nil)
+    semaphore_render_finished := vk.Semaphore{}
+    vk_check_result(
+        vk.CreateSemaphore(
+            vk_device,
+            &semaphore_create_info,
+            nil,
+            &semaphore_render_finished,
+        ),
+    )
+    defer vk.DestroySemaphore(vk_device, semaphore_render_finished, nil)
+
+    fence_create_info := vk.FenceCreateInfo {
+        sType = vk.StructureType.FENCE_CREATE_INFO,
+        flags = {.SIGNALED},
+    }
+    fence_in_flight := vk.Fence{}
+    vk_check_result(
+        vk.CreateFence(vk_device, &fence_create_info, nil, &fence_in_flight),
+    )
+    defer vk.DestroyFence(vk_device, fence_in_flight, nil)
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
+
+        vk_check_result(
+            vk.WaitForFences(vk_device, 1, &fence_in_flight, true, max(u64)),
+        )
+        vk_check_result(vk.ResetFences(vk_device, 1, &fence_in_flight))
+
+        image_index: u32 = 0
+
+        vk_check_result(
+            vk.AcquireNextImageKHR(
+                vk_device,
+                vk_swap_chain,
+                max(u64),
+                semaphore_image_available,
+                {},
+                &image_index,
+            ),
+        )
+
+        vk_check_result(vk.ResetCommandBuffer(command_buffer, {}))
+        record_command_buffer(
+            command_buffer,
+            render_pass,
+            framebuffers[image_index],
+            vk_swap_chain_extent,
+            graphics_pipeline,
+        )
+
+        wait_semaphores: []vk.Semaphore = {semaphore_image_available}
+        wait_stages: []vk.PipelineStageFlags = {{.COLOR_ATTACHMENT_OUTPUT}}
+        signal_semaphores: []vk.Semaphore = {semaphore_render_finished}
+        submit_info := vk.SubmitInfo {
+            sType                = vk.StructureType.SUBMIT_INFO,
+            waitSemaphoreCount   = 1,
+            pWaitSemaphores      = raw_data(wait_semaphores),
+            pWaitDstStageMask    = raw_data(wait_stages),
+            commandBufferCount   = 1,
+            pCommandBuffers      = &command_buffer,
+            signalSemaphoreCount = 1,
+            pSignalSemaphores    = raw_data(signal_semaphores),
+        }
+
+        vk_check_result(
+            vk.QueueSubmit(
+                vk_graphics_queue,
+                1,
+                &submit_info,
+                fence_in_flight,
+            ),
+        )
+
+        present_info := vk.PresentInfoKHR {
+            sType              = vk.StructureType.PRESENT_INFO_KHR,
+            waitSemaphoreCount = 1,
+            pWaitSemaphores    = raw_data(signal_semaphores),
+            swapchainCount     = 1,
+            pSwapchains        = &vk_swap_chain,
+            pImageIndices      = &image_index,
+        }
+
+        vk_check_result(vk.QueuePresentKHR(vk_graphics_queue, &present_info))
     }
+
+    vk_check_result(vk.DeviceWaitIdle(vk_device))
 }

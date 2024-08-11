@@ -13,5 +13,6 @@ pkgs.mkShell {
     vulkan-headers
     vulkan-validation-layers
     pkg-config
+    shaderc
   ];
 }
