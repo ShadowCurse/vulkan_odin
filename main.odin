@@ -796,6 +796,24 @@ main :: proc() {
         delete(framebuffers)
     }
 
+    fmt.println("Creating command pool")
+    command_pool_create_info := vk.CommandPoolCreateInfo {
+        sType            = vk.StructureType.COMMAND_POOL_CREATE_INFO,
+        flags            = {.RESET_COMMAND_BUFFER},
+        queueFamilyIndex = vk_selected_queue_index,
+    }
+
+    command_pool := vk.CommandPool{}
+    vk_check_result(
+        vk.CreateCommandPool(
+            vk_device,
+            &command_pool_create_info,
+            nil,
+            &command_pool,
+        ),
+    )
+    defer vk.DestroyCommandPool(vk_device, command_pool, nil)
+
     for !glfw.WindowShouldClose(window) {
         glfw.PollEvents()
     }
