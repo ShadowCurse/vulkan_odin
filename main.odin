@@ -362,19 +362,9 @@ main :: proc() {
         &vk_device_queue_family_count,
         raw_data(vk_device_queue_families),
     )
-    vk_selected_queue_index: u32 = 0
 
-    selected_queue_pesentation_supported: u32
-    vk.GetPhysicalDeviceSurfaceSupportKHR(
-        vk_physical_device,
-        vk_selected_queue_index,
-        surface,
-        cast(^b32)&selected_queue_pesentation_supported,
-    )
-    fmt.println(
-        "Selected queue can present: ",
-        cast(bool)selected_queue_pesentation_supported,
-    )
+    graphics_queue_index: Maybe(u32) = nil
+    present_queue_index: Maybe(u32) = nil
     for queue_family_index in 0 ..< len(vk_device_queue_families) {
         queue_family := &vk_device_queue_families[queue_family_index]
         if .GRAPHICS in queue_family.queueFlags {
@@ -383,7 +373,7 @@ main :: proc() {
                 queue_family_index,
                 " supports GRAPHICS bit",
             )
-            vk_selected_queue_index = cast(u32)queue_family_index
+            graphics_queue_index = cast(u32)queue_family_index
         } else {
             fmt.println(
                 "Queue family ",
@@ -391,23 +381,50 @@ main :: proc() {
                 " does not supports GRAPHICS bit",
             )
         }
+
+        queue_family_pesentation_supported: u32
+        vk.GetPhysicalDeviceSurfaceSupportKHR(
+            vk_physical_device,
+            u32(queue_family_index),
+            surface,
+            cast(^b32)&queue_family_pesentation_supported,
+        )
+        if cast(bool)queue_family_pesentation_supported {
+            fmt.println(
+                "Queue family ",
+                queue_family_index,
+                " supports presentation",
+            )
+            present_queue_index = cast(u32)queue_family_index
+        }
+
+        if graphics_queue_index != nil && present_queue_index != nil {
+            break
+        }
     }
 
+    fmt.println("Selected graphics queue index: ", graphics_queue_index.(u32))
+    fmt.println("Selected present queue index: ", present_queue_index.(u32))
+    assert(
+        graphics_queue_index.(u32) == present_queue_index.(u32),
+        "We assume the families are same",
+    )
+
     fmt.println("Creating device")
-    vk_queue_priority: f32 = 1.0
-    vk_queue_create_info := vk.DeviceQueueCreateInfo {
+    queue_priority: f32 = 1.0
+    queue_create_info := vk.DeviceQueueCreateInfo {
         sType            = vk.StructureType.DEVICE_QUEUE_CREATE_INFO,
-        queueFamilyIndex = vk_selected_queue_index,
+        queueFamilyIndex = graphics_queue_index.(u32),
         queueCount       = 1,
-        pQueuePriorities = &vk_queue_priority,
+        pQueuePriorities = &queue_priority,
     }
 
     vk_physical_device_features := vk.PhysicalDeviceFeatures{}
 
     vk_device_create_info := vk.DeviceCreateInfo {
         sType                   = vk.StructureType.DEVICE_CREATE_INFO,
-        pQueueCreateInfos       = &vk_queue_create_info,
         queueCreateInfoCount    = 1,
+        pQueueCreateInfos       = &queue_create_info,
         pEnabledFeatures        = &vk_physical_device_features,
         ppEnabledExtensionNames = raw_data(VK_DEVICE_EXTENSION_NAMES),
         enabledExtensionCount   = u32(len(VK_DEVICE_EXTENSION_NAMES)),
@@ -428,7 +445,7 @@ main :: proc() {
     vk_graphics_queue := vk.Queue{}
     vk.GetDeviceQueue(
         vk_device,
-        vk_selected_queue_index,
+        graphics_queue_index.(u32),
         0,
         &vk_graphics_queue,
     )
@@ -840,7 +857,7 @@ main :: proc() {
     command_pool_create_info := vk.CommandPoolCreateInfo {
         sType            = vk.StructureType.COMMAND_POOL_CREATE_INFO,
         flags            = {.RESET_COMMAND_BUFFER},
-        queueFamilyIndex = vk_selected_queue_index,
+        queueFamilyIndex = graphics_queue_index.(u32),
     }
 
     command_pool := vk.CommandPool{}
